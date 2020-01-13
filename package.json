@@ -1,0 +1,19 @@
+{
+  "name": "crystallize",
+  "version": "1.0.0",
+  "description": "takes image as an input",
+  "main": "index.js",
+  "dependencies": {
+    "aws-sdk": "^2.601.0",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "express-fileupload": "^1.1.6",
+    "jimp": "^0.9.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Damilare Adegunloye",
+  "license": "ISC"
+}
