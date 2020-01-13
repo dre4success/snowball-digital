@@ -60,6 +60,7 @@ app.post('/api/upload', async (req, res) => {
       Body: overlayedImage,
       ContentType: req.files.image.mimetype
     };
+    // uploading to AWS S3 bucket
     const data = await s3.upload(params).promise();
     return res.status(200).json({ status: 200, url: data.Location });
   } catch (e) {
