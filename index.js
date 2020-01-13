@@ -20,7 +20,7 @@ AWS.config.update({
 
 const s3 = new AWS.S3();
 
-app.post('/upload', async (req, res) => {
+app.post('/api/upload', async (req, res) => {
   try {
     // validating that it's a file being inputed
     if (!req.files) throw Error('Please use form-data');
