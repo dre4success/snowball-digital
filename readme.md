@@ -3,8 +3,8 @@
 https://snowball-digital.dre4success.com
 
 
-## UPLOAD IMAGE
-- **POST** - /api/upload - UPLOAD IMAGE
+## UPLOAD IMAGE ENDPOINT
+- **POST - /api/upload**
 
   - **param**:
 
