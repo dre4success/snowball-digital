@@ -1,10 +1,8 @@
-## BASE URL
 
-https://snowball-digital.dre4success.com
 
 
 ## UPLOAD IMAGE ENDPOINT
-- **POST - /api/upload**
+- **POST - https://snowball-digital.dre4success.com/api/upload**
 
   - **param**:
 
