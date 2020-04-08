@@ -20,6 +20,10 @@ AWS.config.update({
 
 const s3 = new AWS.S3();
 
+app.get('/', (req, res) => {
+  res.json('Hello World\n')
+})
+
 app.post('/api/upload', async (req, res) => {
   try {
     // validating that it's a file being inputed
