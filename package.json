@@ -8,11 +8,15 @@
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "express-fileupload": "^1.1.6",
-    "jimp": "^0.9.3"
+    "jimp": "^0.9.3",
+    "pm2": "^4.2.3"
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./node_modules/pm2/bin/pm2 start ./index.js --name hello_aws --log ../logs/app.log ",
+    "stop": "node ./node_modules/pm2/bin/pm2 stop hello_aws",
+    "build": "echo 'Building...'"
   },
   "author": "Damilare Adegunloye",
   "license": "ISC"
