@@ -1,0 +1,24 @@
+version: 0.0
+os: linux
+files:
+  # unzip the build artifact in ~/app
+  - source: /
+    destination: /home/ubuntu/app/release
+permissions:
+  # change permissions from root to ubuntu
+  - object: /home/ubuntu/app/release
+    pattern: "**"
+    owner: ubuntu
+    group: ubuntu
+hooks:
+  ApplicationStart:
+    # start the application
+    - location: start-service.sh
+      timeout: 300
+      runas: ubuntu
+  ApplicationStop:
+    # stop the application
+    - location: stop-service.sh
+      timeout: 300
+      runas: ubuntu
+      
