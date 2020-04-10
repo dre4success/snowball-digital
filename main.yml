@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+        EC2InstanceType:
+                Type: String
+        EC2AMI:
+                Type: 'AWS::EC2::Image::Id'
+                Default: 'ami-03d8261f577d71b6a'
+
+
+Resources:
+        SecurityGroup:
+                Type: AWS::EC2::SecurityGroup
+                Properties:
+                        GroupDescription: !Sub 'Internal Security group for ${AWS::StackName}'
+
+                        SecurityGroupIngress:
+                                - IpProtocol: tcp
+                                  FromPort: 5051
+                                  ToPort: 5051
+                                  CidrIp: 0.0.0.0/0
+                                - IpProtocol: tcp
+                                  FromPort: 22
+                                  ToPort: 22
+                                  CidrIp: 0.0.0.0/0
+                        Tags:
+                                - Key: Name
+                                  Value: !Ref AWS::StackName
+        InstanceRole:
+                Type: "AWS::IAM::Role"
+                Properties:
+                        AssumeRolePolicyDocument:
+                                Version: "2012-10-17"
+                                Statement:
+                                        Effect: Allow
+                                        Principal:
+                                                Service:
+                                                        - "ec2.amazonaws.com"
+                                        Action: sts:AssumeRole
+                        ManagedPolicyArns:
+                                - arn:aws:iam::aws:policy/CloudWatchFullAccess
+                        Tags:
+                                - Key: Name
+                                  Value: !Ref AWS::StackName
+        InstanceProfile:
+                Type: "AWS::IAM::InstanceProfile"
+                Properties:
+                        Roles:
+                                - Ref: InstanceRole
+
+        Instance:
+                Type: AWS::EC2::Instance
+                DeletionPolicy: Retain
+                CreationPolicy:
+                        ResourceSignal:
+                                Timeout: PT15M
+                                Count: 1
+                Metadata:
+                        AWS::CloudFormation::Init:
+                                config:
+                                        packages:
+                                                apt-get:
+                                                        wget: []
+                                                        unzip: []
+                Properties:
+                        ImageId: !Ref EC2AMI
+                        InstanceType: !Ref EC2InstanceType
+                        IamInstanceProfile: !Ref InstanceProfile
+                        Monitoring: true
+                        SecurityGroupIds:
+                                - !GetAtt SecurityGroup.GroupId
+                        UserData:
+                                Fn::Base64: !Sub |
+                                        #!/bin/bash -xe
+                                        apt-get update
+                                        apt-get install ec2-instance-connect
+                                        # send script output to /tmp so we can debut boot failures
+                                        exec > /tmp/userdata.log 2>&1
+
+                                        # Update all packages
+                                        sudo apt-get install -y unzip
+                                        apt-get install -y python-setuptools
+
+                                        # Get latest cfn scripts; https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best- practices.html#cfninit
+                                        mkdir -p /opt/aws/bin
+                                        apt-get update -y
+                                        apt-get install -y python-pip
+                                        apt-get install -y python-setuptools
+                                        python /usr/lib/python2.7/dist-packages/easy_install.py --script-dir /opt/aws/bin https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+
+                                        # Have CloudFormation install any files and packages from metadata
+                                        /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --region ${AWS::Region} --resource Instance
+
+                                        cat > /tmp/install_script.sh <<EOF
+                                                # START
+                                                echo "Setting up NodeJS Environment"
+                                                curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
+
+                                                # Dot source the files to ensure that variables are available within the current shell
+
+                                                . /home/ubuntu/.nvm/nvm.sh
+                                                . /home/ubuntu/.bashrc
+
+                                                # Install NVM, NPM, Node.JS
+                                                nvm alias default v12.7.0
+                                                nvm install v12.7.0
+                                                nvm use v12.7.0
+
+                                                # Download latest code, unzip it into /home/ubuntu/app
+                                                wget https://github.com/dre4success/snowball-digital/archive/master.zip
+                                                unzip master.zip
+                                                mv snowball-digital-master app
+
+                                                # Create log directory
+                                                mkdir -p /home/ubuntu/app/logs
+
+                                                # Run server
+                                                cd app
+                                                npm install
+                                                npm start
+                                        EOF
+
+                                        chown ubuntu:ubuntu /tmp/install_script.sh && chmod a+x /tmp/install_script.sh
+                                        sleep 1; su - ubuntu -c "/tmp/install_script.sh"
+
+                                        # Signal to CloudFormation that the install is ready
+                                        /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource Instance
+
+
+                                
+                        Tags:
+                                - Key: Name
+                                  Value: !Ref AWS::StackName        
+
+
+Outputs:
+        InstanceEndpoint:
+                Description: The DNS name for the created instance
+                Value: !Sub "http://${Instance.PublicDnsName}:5051"
+                Export:
+                        Name: InstanceEndpoint
+
+
