@@ -245,13 +245,11 @@ Resources:
 
                                                 # Dot source the files to ensure that variables are available within the current shell
 
-                                                . /home/ubuntu/.nvm/nvm.sh
                                                 . /home/ubuntu/.bashrc
 
-                                                # Install NVM, NPM, Node.JS
-                                                nvm alias default v12.7.0
-                                                nvm install v12.7.0
-                                                nvm use v12.7.0
+                                                # Install NPM, Node.JS
+                                                curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+                                                sudo apt-get install -y nodejs
 
                                                 # Create log directory
                                                 mkdir -p /home/ubuntu/app/logs

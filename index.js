@@ -20,8 +20,10 @@ AWS.config.update({
 
 const s3 = new AWS.S3();
 
+let message = `Hello Cloud \n`
+
 app.get('/', (req, res) => {
-  res.json('Hello World\n')
+  res.json(message)
 })
 
 app.post('/api/upload', async (req, res) => {
