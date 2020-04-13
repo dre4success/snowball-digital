@@ -178,9 +178,101 @@ Resources:
                         ManagedPolicyArns:
                                 - arn:aws:iam::aws:policy/CloudWatchFullAccess
                                 - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeploy
+                        Policies:
+                                - PolicyName: ec2DescribeTags
+                                  PolicyDocument:
+                                        Version: "2012-10-17"
+                                        Statement:
+                                                - Effect: Allow
+                                                  Action: "ec2:DescribeTags"
+                                                  Resource: '*'
                         Tags:
                                 - Key: Name
                                   Value: !Ref AWS::StackName
+        
+        InstanceLaunchTemplate: 
+                Type: "AWS::EC2::LaunchTemplate"
+                Metadata:
+                        AWS::CloudFormation::Init:
+                                config:
+                                        packages:
+                                                apt-get: 
+                                                        jq: []
+                                        files:
+                                                /home/ubuntu/install:
+                                                        source: !Sub "https://aws-codedeploy-${AWS::Region}.s3.amazonaws.com/latest/install"
+                                                        mode: "000755"
+                                        commands:
+                                                00-install-cd-agent:
+                                                        command: "./install auto"
+                                                        cwd: "/home/ubuntu/"
+                Properties:
+                        LaunchTemplateName: !Sub 'LaunchTemplate_${AWS::StackName}'
+                        LaunchTemplateData:
+                                ImageId: !Ref EC2AMI
+                                InstanceType: !Ref EC2InstanceType
+                                IamInstanceProfile:
+                                        Arn: !GetAtt InstanceProfile.Arn
+                                Monitoring:
+                                        Enabled: true
+                                SecurityGroupIds:
+                                        - !GetAtt SecurityGroup.GroupId
+                                UserData:
+                                        Fn::Base64: !Sub |
+                                                #!/bin/bash -xe
+                                                apt-get update
+                                                apt-get install ec2-instance-connect
+                                                # send script output to /tmp so we can debug boot failures
+                                                exec > /tmp/userdata.log 2>&1
+
+                                                # Update all packages
+                                                sudo apt-get install -y ruby
+                                                sudo apt-get install -y unzip
+                                                sudo apt-get install -y jq
+                                                sudo snap install aws-cli --classic
+                                                
+                                                # Get latest cfn scripts; https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best- practices.html#cfninit
+                                                mkdir -p /opt/aws/bin
+                                                apt-get update -y
+                                                apt-get install -y python-pip
+                                                apt-get install -y python-setuptools
+                                                python /usr/lib/python2.7/dist-packages/easy_install.py --script-dir /opt/aws/bin https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+
+                                                cat > /tmp/install_script.sh << EOF
+                                                        # START
+                                                        echo "Setting up NodeJS Environment"
+
+                                                        # Dot source the files to ensure that variables are available within the current shell
+
+                                                        . /home/ubuntu/.bashrc
+
+                                                        # Install NPM, Node.JS
+                                                        curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+                                                        sudo apt-get install -y nodejs
+
+                                                        # Create log directory
+                                                        mkdir -p /home/ubuntu/app/logs
+                                                EOF
+                                                
+                                                chown ubuntu:ubuntu /tmp/install_script.sh && chmod a+x /tmp/install_script.sh
+                                                sleep 1; su - ubuntu -c "/tmp/install_script.sh"
+
+                                                # Have CloudFormation install any files and packages from metadata
+                                                /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --region ${AWS::Region} --resource InstanceLaunchTemplate
+
+                                                # Query the EC2 metadata service for this instance's instance-id 
+                                                export INSTANCE_ID=`curl -s http://169.254.169.254/latest/meta-data/instance-id`
+
+                                                # Query EC2 describeTags method and pull out the CFN Logical ID for this instance
+                                                export LOGICAL_ID=`aws --region ${AWS::Region} ec2 describe-tags \
+                                                        --filters "Name=resource-id,Values=${!INSTANCE_ID}" \
+                                                                  "Name=key,Values=aws:cloudformation:logical-id" \
+                                                        | jq -r ".Tags[0].Value"`
+
+                                                # Signal to CloudFormation that the instance is ready
+                                                /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource ${!LOGICAL_ID}
+
+
         InstanceProfile:
                 Type: "AWS::IAM::InstanceProfile"
                 Properties:
@@ -194,88 +286,42 @@ Resources:
                         ResourceSignal:
                                 Timeout: PT5M
                                 Count: 1
-                Metadata:
-                        AWS::CloudFormation::Init:
-                                config:
-                                        packages:
-                                                apt-get:
-                                                        ruby: []
-                                                        wget: []
-                                                        unzip: []
-                                        files:
-                                                /home/ubuntu/install:
-                                                        source: !Sub "https://aws-codedeploy-${AWS::Region}.s3.amazonaws.com/latest/install"
-                                                        mode: "000755" #executable
-                                        commands:
-                                                00-install-cd-agent:
-                                                        command: "./install auto"
-                                                        cwd: "/home/ubuntu/"
-
+                
                 Properties:
-                        ImageId: !Ref EC2AMI
-                        InstanceType: !Ref EC2InstanceType
-                        IamInstanceProfile: !Ref InstanceProfile
-                        Monitoring: true
-                        SecurityGroupIds:
-                                - !GetAtt SecurityGroup.GroupId
-                        UserData:
-                                Fn::Base64: !Sub |
-                                        #!/bin/bash -xe
-                                        apt-get update
-                                        apt-get install ec2-instance-connect
-                                        # send script output to /tmp so we can debut boot failures
-                                        exec > /tmp/userdata.log 2>&1
-
-                                        # Update all packages
-                                        sudo apt-get install -y ruby
-                                        sudo apt-get install -y unzip
-                                        apt-get install -y python-setuptools
-
-                                        # Get latest cfn scripts; https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best- practices.html#cfninit
-                                        mkdir -p /opt/aws/bin
-                                        apt-get update -y
-                                        apt-get install -y python-pip
-                                        apt-get install -y python-setuptools
-                                        python /usr/lib/python2.7/dist-packages/easy_install.py --script-dir /opt/aws/bin https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-
-                                        cat > /tmp/install_script.sh << EOF
-                                                # START
-                                                echo "Setting up NodeJS Environment"
-                                                curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
-
-                                                # Dot source the files to ensure that variables are available within the current shell
-
-                                                . /home/ubuntu/.bashrc
-
-                                                # Install NPM, Node.JS
-                                                curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
-                                                sudo apt-get install -y nodejs
-
-                                                # Create log directory
-                                                mkdir -p /home/ubuntu/app/logs
-                                        EOF
-
-                                        chown ubuntu:ubuntu /tmp/install_script.sh && chmod a+x /tmp/install_script.sh
-                                        sleep 1; su - ubuntu -c "/tmp/install_script.sh"
-
-                                        # Have CloudFormation install any files and packages from metadata
-                                        /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --region ${AWS::Region} --resource Instance
-
-                                        # Signal to CloudFormation that the instance is ready
-                                        /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource Instance
-
-
+                        LaunchTemplate:
+                                LaunchTemplateId: !Ref InstanceLaunchTemplate
+                                Version: !GetAtt InstanceLaunchTemplate.LatestVersionNumber       
                                 
                         Tags:
                                 - Key: Name
-                                  Value: !Ref AWS::StackName        
+                                  Value: !Ref AWS::StackName  
+
+        Instance2:
+                Type: AWS::EC2::Instance
+                DeletionPolicy: Retain
+                CreationPolicy:
+                        ResourceSignal:
+                                Timeout: PT5M
+                                Count: 1
+                Properties:
+                        LaunchTemplate:
+                                LaunchTemplateId: !Ref InstanceLaunchTemplate
+                                Version: !GetAtt InstanceLaunchTemplate.LatestVersionNumber
+                        Tags:
+                                - Key: Name
+                                  Value: !Ref AWS::StackName     
 
 
 Outputs:
-        InstanceEndpoint:
+        InstanceEndpoint1:
                 Description: The DNS name for the created instance
                 Value: !Sub "http://${Instance.PublicDnsName}:5051"
                 Export:
-                        Name: InstanceEndpoint
+                        Name: InstanceEndpoint1
+        InstanceEndpoint2:
+                Description: The DNS name for the created instance
+                Value: !Sub "http://${Instance.PublicDnsName}:5051"
+                Export:
+                        Name: InstanceEndpoint2
 
 

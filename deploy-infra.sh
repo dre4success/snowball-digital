@@ -50,5 +50,5 @@ aws cloudformation deploy \
 if [ $? -eq 0 ]; then
 	aws cloudformation list-exports \
 		--profile dre4success
-		--query "Exports[?Name=='InstanceEndpoint'].Value"
+		--query "Exports[?starts_with(Name,'InstanceEndpoint')].Value"
 fi
