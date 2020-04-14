@@ -21,6 +21,8 @@ AWS.config.update({
 
 const s3 = new AWS.S3();
 
+const STACK_NAME = process.env.STACK_NAME || 'Unknown Stack'
+
 let message = `Hello Cloud from ${hostname()} IN ${STACK_NAME}`;
 
 app.get("/", (req, res) => {
