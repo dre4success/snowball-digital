@@ -14,7 +14,7 @@
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ./node_modules/pm2/bin/pm2 start ./index.js --name hello_aws --log ../logs/app.log ",
+    "start": "node ./node_modules/pm2/bin/pm2 start ./index.js --name hello_aws --log ../logs/app.log --update-env -- --STACK_NAME ${STACK_NAME}",
     "stop": "node ./node_modules/pm2/bin/pm2 stop hello_aws",
     "build": "echo 'Building...'"
   },

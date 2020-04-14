@@ -21,7 +21,7 @@ AWS.config.update({
 
 const s3 = new AWS.S3();
 
-let message = `Hello Cloud from ${hostname()}`;
+let message = `Hello Cloud from ${hostname()} IN ${STACK_NAME}`;
 
 app.get("/", (req, res) => {
   res.json(message);
