@@ -6,6 +6,8 @@ const path = require("path");
 const crypto = require("crypto");
 require("dotenv").config({ path: "variable.env" });
 const { hostname } = require("os");
+const https = require("https");
+const fs = require("fs");
 
 const app = express();
 
@@ -20,11 +22,37 @@ AWS.config.update({
 });
 
 const s3 = new AWS.S3();
+console.log("env", process.env);
 
-const STACK_NAME = process.env.STACK_NAME || 'Unknown Stack'
+const STACK_NAME = process.env.STACK_NAME || "Unknown Stack";
 
-let message = `Hello Cloud from ${hostname()} IN ${STACK_NAME}`;
 
+
+const httpsPort = 8443;
+const httpsKey = "../keys/key.pem";
+const httpsCert = "../keys/cert.pem";
+
+if (fs.existsSync(httpsKey) && fs.existsSync(httpsCert)) {
+  console.log("starting https server");
+  const message = `Hello HTTPS Cloud from ${hostname()} IN ${STACK_NAME}`;
+  const options = {
+    key: fs.readFileSync(httpsKey),
+    cert: fs.readFileSync(httpsCert),
+  };
+  const server = https.createServer(options, (req, res) => {
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'text/plain')
+    res.end(message)
+  })
+
+  server.listen(httpsPort, hostname, () => {
+    console.log(`Server running at https://${hostname()}:${httpsPort}`)
+  })
+}
+
+console.log('Starting http server')
+
+let message = `Hello HTTP Cloud from ${hostname()} IN ${STACK_NAME}`;
 app.get("/", (req, res) => {
   res.json(message);
 });
