@@ -21,19 +21,10 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       GroupDescription: !Sub "Internal Security group for ${AWS::StackName}"
-
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 8443
-          ToPort: 8443
-          CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
