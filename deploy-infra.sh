@@ -15,8 +15,6 @@ DOMAIN=dre4success.com
 CERT=`aws acm list-certificates --region $REGION --profile dre4success --output text \
   --query "CertificateSummaryList[?DomainName=='$DOMAIN'].CertificateArn | [0]"`
 
-echo $CERT
-
 # Generate a personal access token with repo and admin:repo_hook
 # permissions from https://github.com/settings/tokens
 GH_ACCCESS_TOKEN=$(cat ~/.github/repo-token)
