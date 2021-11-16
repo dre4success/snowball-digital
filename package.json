@@ -4,7 +4,7 @@
   "description": "takes image as an input",
   "main": "index.js",
   "dependencies": {
-    "aws-sdk": "^2.601.0",
+    "aws-sdk": "^2.814.0",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "express-fileupload": "^1.1.6",
